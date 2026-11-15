@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Analytics temps réel — Oussama</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/smoothie/1.34.0/smoothie.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #10141c; color: #e8ecf3; margin: 0; padding: 24px; }
+    h1 { margin-top: 0; }
+    .subtitle { color: #8fa0b8; margin-bottom: 24px; }
+    .card { background: #1b2230; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+    canvas { width: 100%; height: 220px; }
+    table { border-collapse: collapse; width: 100%; max-width: 420px; }
+    th, td { border: 1px solid #34405a; padding: 10px; text-align: center; }
+    th { background: #273349; }
+    .p1 { color: #60d17a; }
+    .p2 { color: #ff6b6b; }
+    .legend span { margin-right: 18px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Analytics temps réel — visites des pages</h1>
+  <p class="subtitle">Architecture événementielle Spring Cloud Stream + Kafka + Kafka Streams — réalisé par <strong>Oussama</strong></p>
+
+  <div class="card legend">
+    <span class="p1">● P1</span>
+    <span class="p2">● P2</span>
+    <span id="status">Connexion au flux...</span>
+  </div>
+
+  <div class="card">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Page</th><th>Visites (5 dernières secondes)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="p1">P1</td><td id="p1">0</td></tr>
+        <tr><td class="p2">P2</td><td id="p2">0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    var seriesP1 = new TimeSeries();
+    var seriesP2 = new TimeSeries();
+
+    if (typeof SmoothieChart !== 'undefined') {
+      var chart = new SmoothieChart({
+        grid: { strokeStyle: '#34405a', fillStyle: '#1b2230', lineWidth: 1 },
+        labels: { fillStyle: '#c7d2e4' },
+        tooltipLine: { strokeStyle: '#ffffff' },
+        minValue: 0
+      });
+      chart.addTimeSeries(seriesP1, { strokeStyle: '#60d17a', fillStyle: 'rgba(96,209,122,0.2)', lineWidth: 2 });
+      chart.addTimeSeries(seriesP2, { strokeStyle: '#ff6b6b', fillStyle: 'rgba(255,107,107,0.2)', lineWidth: 2 });
+      chart.streamTo(document.getElementById('chart'), 1000);
+    }
+
+    var source = new EventSource('/analytics');
+    source.onmessage = function (event) {
+      var data = JSON.parse(event.data);
+      var p1 = data['P1'] || 0;
+      var p2 = data['P2'] || 0;
+      document.getElementById('p1').textContent = p1;
+      document.getElementById('p2').textContent = p2;
+      document.getElementById('status').textContent = 'Flux connecté';
+      var now = Date.now();
+      seriesP1.append(now, p1);
+      seriesP2.append(now, p2);
+    };
+    source.onerror = function () {
+      document.getElementById('status').textContent = 'En attente des données Kafka Streams (~30 s au démarrage)...';
+    };
+  </script>
+</body>
+</html>
